@@ -3,9 +3,6 @@ use serde::Serialize;
 #[derive(Debug, thiserror::Error, Serialize)]
 #[serde(tag = "kind", content = "message")]
 pub enum AppError {
-    #[error("OpenFang daemon is not running")]
-    DaemonNotRunning,
-
     #[error("OpenFang API error {status}: {message}")]
     Api { status: u16, message: String },
 
