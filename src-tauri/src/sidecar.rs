@@ -9,6 +9,28 @@ use crate::state::{AppState, DaemonStatus, SidecarState};
 const OPENFANG_BASE: &str = "http://127.0.0.1:4200";
 const HEALTH_URL: &str = "http://127.0.0.1:4200/api/health";
 
+/// Spawn the bundled sidecar and wait until its HTTP server is ready.
+/// Returns `Ok(pid)` on success or `Err(message)` on failure.
+/// Does NOT update app state or emit events — callers do that.
+async fn spawn_sidecar(app: &AppHandle) -> Result<u32, String> {
+    let shell = app.shell();
+    let result = shell.sidecar("openfang").map(|cmd| cmd.args(["start"]).spawn());
+
+    match result {
+        Ok(Ok((_rx, child))) => {
+            let pid = child.pid();
+            let state = app.state::<AppState>();
+            let ready = wait_for_ready(&state.client, 20, Duration::from_millis(500)).await;
+            if ready {
+                Ok(pid)
+            } else {
+                Err("Engine failed to start within 10 seconds".to_string())
+            }
+        }
+        Ok(Err(e)) | Err(e) => Err(format!("Failed to start bundled engine: {e}")),
+    }
+}
+
 /// Start the bundled OpenFang sidecar daemon.
 pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
@@ -21,52 +43,25 @@ pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
         sc.status = DaemonStatus::Starting;
         sc.error_message = None;
     }
-
     emit_status(&app, DaemonStatus::Starting, None);
 
-    // Use the bundled sidecar binary (src-tauri/binaries/openfang-<target>)
-    let shell = app.shell();
-    let result = shell.sidecar("openfang").map(|cmd| cmd.args(["start"]).spawn());
-
-    match result {
-        Ok(Ok((_rx, child))) => {
-            let pid = child.pid();
+    match spawn_sidecar(&app).await {
+        Ok(pid) => {
             {
                 let mut sc = state.sidecar.lock().unwrap();
+                sc.status = DaemonStatus::Running;
                 sc.pid = Some(pid);
             }
+            emit_status(&app, DaemonStatus::Running, None);
 
-            // Poll until the HTTP server is accepting connections
-            let client = state.client.clone();
-            let ready = wait_for_ready(&client, 20, Duration::from_millis(500)).await;
+            // Start background health monitor
+            let sidecar_ref = state.sidecar.clone();
+            let client_clone = state.client.clone();
+            tauri::async_runtime::spawn(health_monitor(app.clone(), sidecar_ref, client_clone));
 
-            if ready {
-                {
-                    let mut sc = state.sidecar.lock().unwrap();
-                    sc.status = DaemonStatus::Running;
-                }
-                emit_status(&app, DaemonStatus::Running, None);
-
-                // Start background health monitor
-                let app_clone = app.clone();
-                let sidecar_ref = state.sidecar.clone();
-                let client_clone = state.client.clone();
-                tokio::spawn(health_monitor(app_clone, sidecar_ref, client_clone));
-
-                Ok(())
-            } else {
-                let msg = "Engine failed to start within 10 seconds".to_string();
-                {
-                    let mut sc = state.sidecar.lock().unwrap();
-                    sc.status = DaemonStatus::Error;
-                    sc.error_message = Some(msg.clone());
-                }
-                emit_status(&app, DaemonStatus::Error, Some(msg.clone()));
-                Err(msg)
-            }
+            Ok(())
         }
-        Ok(Err(e)) | Err(e) => {
-            let msg = format!("Failed to start bundled engine: {e}");
+        Err(msg) => {
             {
                 let mut sc = state.sidecar.lock().unwrap();
                 sc.status = DaemonStatus::Error;
@@ -123,6 +118,9 @@ async fn wait_for_ready(client: &reqwest::Client, attempts: u32, delay: Duration
     false
 }
 
+/// Background loop: polls health every 5 s. On failure, auto-restarts the
+/// sidecar with exponential backoff (up to 3 attempts) before giving up.
+/// Avoids calling `start_daemon` to prevent an async type cycle.
 async fn health_monitor(
     app: AppHandle,
     sidecar: Arc<Mutex<SidecarState>>,
@@ -149,10 +147,44 @@ async fn health_monitor(
             .unwrap_or(false);
 
         if !alive && current_status == DaemonStatus::Running {
-            let mut sc = sidecar.lock().unwrap();
-            sc.status = DaemonStatus::Error;
-            sc.error_message = Some("Engine stopped unexpectedly".to_string());
-            emit_status(&app, DaemonStatus::Error, sc.error_message.clone());
+            {
+                let mut sc = sidecar.lock().unwrap();
+                sc.status = DaemonStatus::Starting;
+                sc.error_message = None;
+            }
+            emit_status(&app, DaemonStatus::Starting, None);
+
+            let mut restarted = false;
+            for attempt in 1u32..=3 {
+                sleep(Duration::from_secs(2u64.pow(attempt))).await;
+                // spawn_sidecar is a plain async fn with no mutual recursion —
+                // safe to call from within this loop.
+                match spawn_sidecar(&app).await {
+                    Ok(pid) => {
+                        {
+                            let mut sc = sidecar.lock().unwrap();
+                            sc.status = DaemonStatus::Running;
+                            sc.pid = Some(pid);
+                        }
+                        emit_status(&app, DaemonStatus::Running, None);
+                        restarted = true;
+                        break;
+                    }
+                    Err(_) => continue,
+                }
+            }
+
+            if !restarted {
+                let msg = "Engine stopped and could not be restarted".to_string();
+                {
+                    let mut sc = sidecar.lock().unwrap();
+                    sc.status = DaemonStatus::Error;
+                    sc.error_message = Some(msg.clone());
+                }
+                emit_status(&app, DaemonStatus::Error, Some(msg));
+                break;
+            }
+            // Successfully restarted — continue monitoring in this same loop.
         }
     }
 }

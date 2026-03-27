@@ -1,8 +1,7 @@
-import { Bot, GitFork, Play, Plus, Puzzle, Zap } from "lucide-react";
+import { Bot, GitFork, Play, Plus, Puzzle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { useDaemonStore } from "@/store/daemon-store";
 import { useAgents } from "@/hooks/use-agents";
 import { useWorkflows } from "@/hooks/use-workflows";
@@ -34,7 +33,7 @@ const TEMPLATES = [
 ];
 
 export function Dashboard() {
-  const { status, startDaemon } = useDaemonStore();
+  const { status } = useDaemonStore();
   const { data: agents = [] } = useAgents();
   const { data: workflows = [] } = useWorkflows();
   const navigate = useNavigate();
@@ -46,25 +45,10 @@ export function Dashboard() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Daemon status banner */}
-        {status !== "running" && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <StatusBadge status={status} />
-              <p className="text-sm text-amber-800">
-                {status === "error"
-                  ? "OpenFang daemon failed to start. Is it installed?"
-                  : status === "starting"
-                  ? "Starting OpenFang daemon…"
-                  : "OpenFang daemon is not running. Start it to use agents and workflows."}
-              </p>
-            </div>
-            {status === "stopped" || status === "error" ? (
-              <Button size="sm" onClick={startDaemon}>
-                <Zap className="h-3.5 w-3.5 mr-1" />
-                Start Daemon
-              </Button>
-            ) : null}
+        {/* Error banner — only shown after auto-recovery failed */}
+        {status === "error" && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-800">Something went wrong. Please restart the app.</p>
           </div>
         )}
 

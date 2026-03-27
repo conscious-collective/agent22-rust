@@ -83,4 +83,9 @@ fi
 cp "$BINARY" "$DEST"
 chmod +x "$DEST"
 
+# macOS: strip Gatekeeper quarantine so the binary can run without a security prompt
+if [[ "$(uname)" == "Darwin" ]]; then
+  xattr -cr "$DEST" 2>/dev/null || true
+fi
+
 echo "✓ Installed sidecar: $DEST"

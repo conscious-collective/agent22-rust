@@ -98,7 +98,7 @@ export function Settings() {
               <LoadingSpinner />
             ) : providers.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Start the OpenFang daemon to manage providers.
+                No providers found. Make sure the app is running correctly.
               </p>
             ) : (
               providers.map((p) => <ProviderRow key={p.name} provider={p} />)
@@ -144,10 +144,8 @@ export function Settings() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">About</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground space-y-1">
+          <CardContent className="text-xs text-muted-foreground">
             <p>agent22 v0.1.0 — Local AI workflow automation</p>
-            <p>Powered by <a className="text-primary hover:underline" href="https://openfang.sh" target="_blank" rel="noreferrer">OpenFang</a></p>
-            <p>API endpoint: <code className="bg-muted px-1 rounded">http://127.0.0.1:4200</code></p>
           </CardContent>
         </Card>
       </div>

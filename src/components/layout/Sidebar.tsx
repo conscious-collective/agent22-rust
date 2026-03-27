@@ -1,15 +1,7 @@
 import { NavLink } from "react-router-dom";
-import {
-  Bot,
-  GitFork,
-  Home,
-  Puzzle,
-  Settings,
-  Zap,
-} from "lucide-react";
+import { Bot, GitFork, Home, Puzzle, Settings, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDaemonStore } from "@/store/daemon-store";
-import { StatusBadge } from "@/components/common/StatusBadge";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: Home, end: true },
@@ -20,7 +12,7 @@ const NAV = [
 ];
 
 export function Sidebar() {
-  const { status, startDaemon, stopDaemon } = useDaemonStore();
+  const { status } = useDaemonStore();
 
   return (
     <aside className="flex h-full w-56 flex-col border-r bg-card">
@@ -54,20 +46,12 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Daemon status footer */}
-      <div className="border-t p-3">
-        <div className="flex items-center justify-between">
-          <StatusBadge status={status} />
-          <button
-            onClick={status === "running" ? stopDaemon : startDaemon}
-            disabled={status === "starting"}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-          >
-            {status === "running" ? "Stop" : "Start"}
-          </button>
+      {/* Subtle status dot — only visible when something is wrong */}
+      {status === "error" && (
+        <div className="border-t p-3">
+          <p className="text-[11px] text-red-500">Something went wrong. Try restarting the app.</p>
         </div>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">OpenFang daemon</p>
-      </div>
+      )}
     </aside>
   );
 }
