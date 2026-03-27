@@ -10,6 +10,7 @@
     "shell:allow-spawn",
     "shell:allow-kill",
     "shell:allow-stdin-write",
+    "shell:allow-execute",
     "store:allow-get",
     "store:allow-set",
     "store:allow-load",

@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "sidecar": "bash scripts/download-sidecar.sh",
+    "dev": "npm run sidecar && tauri dev",
+    "build": "npm run sidecar && tauri build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

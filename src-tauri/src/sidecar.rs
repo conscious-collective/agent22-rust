@@ -9,7 +9,7 @@ use crate::state::{AppState, DaemonStatus, SidecarState};
 const OPENFANG_BASE: &str = "http://127.0.0.1:4200";
 const HEALTH_URL: &str = "http://127.0.0.1:4200/api/health";
 
-/// Attempt to start the OpenFang daemon. Tries to use `openfang` from PATH.
+/// Start the bundled OpenFang sidecar daemon.
 pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
 
@@ -24,31 +24,30 @@ pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
 
     emit_status(&app, DaemonStatus::Starting, None);
 
-    // Spawn openfang start as a background process via the shell plugin
+    // Use the bundled sidecar binary (src-tauri/binaries/openfang-<target>)
     let shell = app.shell();
-    let result = shell
-        .command("openfang")
-        .args(["start"])
-        .spawn();
+    let result = shell.sidecar("openfang").map(|cmd| cmd.args(["start"]).spawn());
 
     match result {
-        Ok((_rx, child)) => {
+        Ok(Ok((_rx, child))) => {
             let pid = child.pid();
             {
                 let mut sc = state.sidecar.lock().unwrap();
                 sc.pid = Some(pid);
             }
 
-            // Wait for the daemon to be ready (poll health endpoint)
+            // Poll until the HTTP server is accepting connections
             let client = state.client.clone();
             let ready = wait_for_ready(&client, 20, Duration::from_millis(500)).await;
 
             if ready {
-                let mut sc = state.sidecar.lock().unwrap();
-                sc.status = DaemonStatus::Running;
+                {
+                    let mut sc = state.sidecar.lock().unwrap();
+                    sc.status = DaemonStatus::Running;
+                }
                 emit_status(&app, DaemonStatus::Running, None);
 
-                // Spawn background health monitor
+                // Start background health monitor
                 let app_clone = app.clone();
                 let sidecar_ref = state.sidecar.clone();
                 let client_clone = state.client.clone();
@@ -56,7 +55,7 @@ pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
 
                 Ok(())
             } else {
-                let msg = "Daemon failed to start within 10 seconds".to_string();
+                let msg = "Engine failed to start within 10 seconds".to_string();
                 {
                     let mut sc = state.sidecar.lock().unwrap();
                     sc.status = DaemonStatus::Error;
@@ -66,8 +65,8 @@ pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
                 Err(msg)
             }
         }
-        Err(e) => {
-            let msg = format!("Failed to spawn openfang: {e}. Is it installed? Run: cargo install --git https://github.com/RightNow-AI/openfang openfang-cli");
+        Ok(Err(e)) | Err(e) => {
+            let msg = format!("Failed to start bundled engine: {e}");
             {
                 let mut sc = state.sidecar.lock().unwrap();
                 sc.status = DaemonStatus::Error;
@@ -79,18 +78,16 @@ pub async fn start_daemon(app: AppHandle) -> Result<(), String> {
     }
 }
 
-/// Stop the OpenFang daemon gracefully via its shutdown API endpoint.
+/// Stop the daemon gracefully via its shutdown endpoint.
 pub async fn stop_daemon(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let client = state.client.clone();
 
-    // Try graceful shutdown first
-    let _ = client
+    let _ = state
+        .client
         .post(format!("{OPENFANG_BASE}/api/shutdown"))
         .send()
         .await;
 
-    // Give it a moment
     sleep(Duration::from_millis(500)).await;
 
     {
@@ -103,7 +100,17 @@ pub async fn stop_daemon(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Poll the health endpoint until the daemon responds or timeout is reached.
+/// Returns true if the daemon is already listening (e.g. started by a previous app session).
+pub async fn probe_existing(client: &reqwest::Client) -> bool {
+    client
+        .get(HEALTH_URL)
+        .timeout(Duration::from_secs(2))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
 async fn wait_for_ready(client: &reqwest::Client, attempts: u32, delay: Duration) -> bool {
     for _ in 0..attempts {
         if let Ok(resp) = client.get(HEALTH_URL).send().await {
@@ -116,7 +123,6 @@ async fn wait_for_ready(client: &reqwest::Client, attempts: u32, delay: Duration
     false
 }
 
-/// Background task that polls the health endpoint every 5 seconds.
 async fn health_monitor(
     app: AppHandle,
     sidecar: Arc<Mutex<SidecarState>>,
@@ -145,27 +151,15 @@ async fn health_monitor(
         if !alive && current_status == DaemonStatus::Running {
             let mut sc = sidecar.lock().unwrap();
             sc.status = DaemonStatus::Error;
-            sc.error_message = Some("Daemon stopped unexpectedly".to_string());
+            sc.error_message = Some("Engine stopped unexpectedly".to_string());
             emit_status(&app, DaemonStatus::Error, sc.error_message.clone());
         }
     }
 }
 
 fn emit_status(app: &AppHandle, status: DaemonStatus, error: Option<String>) {
-    use serde_json::json;
     let _ = app.emit(
         "daemon://status",
-        json!({ "status": status, "error": error }),
+        serde_json::json!({ "status": status, "error": error }),
     );
-}
-
-/// Check if daemon is already running (survives across restarts).
-pub async fn probe_existing(client: &reqwest::Client) -> bool {
-    client
-        .get(HEALTH_URL)
-        .timeout(Duration::from_secs(2))
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false)
 }

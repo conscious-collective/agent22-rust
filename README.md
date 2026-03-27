@@ -1,6 +1,6 @@
 # agent22
 
-A local AI workflow automation desktop app — think Relay.app, but fully offline, built with [Tauri](https://tauri.app) and powered by [OpenFang](https://openfang.sh).
+A local AI workflow automation desktop app — build, run, and chat with AI agents entirely offline, built with [Tauri](https://tauri.app) and powered by [OpenFang](https://openfang.sh).
 
 ![agent22](https://img.shields.io/badge/tauri-2.0-blue) ![rust](https://img.shields.io/badge/rust-1.87+-orange) ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -24,16 +24,13 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  # Rust stable
 node --version  # Node 22+
 ```
 
-**OpenFang CLI**
-```bash
-cargo install --git https://github.com/RightNow-AI/openfang openfang-cli
-```
-
-**At least one LLM provider.** Easiest local option (no API key):
+**At least one LLM provider.** Easiest local option (no API key needed):
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen2.5:7b
 ```
+
+That's it. The AI engine is bundled inside the app — no separate install required.
 
 ## Running
 
@@ -44,7 +41,16 @@ npm install
 npm run dev
 ```
 
-The app auto-starts the OpenFang daemon on launch. If it fails, hit **Start** in the sidebar footer or go to Settings → Providers to configure an LLM key.
+`npm run dev` automatically downloads the correct engine binary for your platform before starting. The engine starts in the background when the app launches.
+
+## Building a distributable
+
+```bash
+npm run build
+# Produces a self-contained .dmg / .exe / .AppImage in src-tauri/target/release/bundle/
+```
+
+The engine binary is bundled into the package — end users install one file and everything works.
 
 ## Building a release
 
