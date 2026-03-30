@@ -1,27 +1,23 @@
 {
   "name": "agent22",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "sidecar": "bash scripts/download-sidecar.sh",
-    "dev": "npm run sidecar && tauri dev",
-    "build": "npm run sidecar && tauri build",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-shell": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-store": "^2",
-    "@tanstack/react-query": "^5",
-    "@xyflow/react": "^12",
     "class-variance-authority": "^0.7",
     "clsx": "^2",
     "lucide-react": "^0.523",
     "react": "^18",
     "react-dom": "^18",
-    "react-router-dom": "^6",
     "tailwind-merge": "^2",
     "zustand": "^5"
   },

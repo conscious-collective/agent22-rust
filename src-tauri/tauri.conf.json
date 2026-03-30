@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "agent22",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.agent22.app",
   "build": {
     "beforeDevCommand": "vite",
@@ -13,9 +13,9 @@
     "windows": [
       {
         "title": "agent22",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 900,
+        "width": 1100,
+        "height": 760,
+        "minWidth": 800,
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; connect-src 'self' http://127.0.0.1:4200 ws://127.0.0.1:4200"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: asset: http://asset.localhost; connect-src 'self' https://huggingface.co https://api.web3forms.com https://agent22.io"
     }
   },
   "bundle": {
@@ -37,7 +37,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "externalBin": ["binaries/openfang"]
+    ]
   }
 }

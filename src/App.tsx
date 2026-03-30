@@ -1,51 +1,36 @@
 import { useEffect } from "react";
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { AppShell } from "@/components/layout/AppShell";
-import { Dashboard } from "@/pages/Dashboard";
-import { Agents } from "@/pages/Agents";
-import { AgentDetail } from "@/pages/AgentDetail";
-import { Workflows } from "@/pages/Workflows";
-import { WorkflowDetail } from "@/pages/WorkflowDetail";
-import { Skills } from "@/pages/Skills";
-import { Settings } from "@/pages/Settings";
-import { queryClient } from "@/lib/query-client";
-import { useDaemonStore } from "@/store/daemon-store";
-
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <AppShell />,
-    children: [
-      { index: true, element: <Dashboard /> },
-      { path: "agents", element: <Agents /> },
-      { path: "agents/:id", element: <AgentDetail /> },
-      { path: "workflows", element: <Workflows /> },
-      { path: "workflows/:id", element: <WorkflowDetail /> },
-      { path: "skills", element: <Skills /> },
-      { path: "settings", element: <Settings /> },
-      { path: "*", element: <Navigate to="/" replace /> },
-    ],
-  },
-]);
-
-function AppInit() {
-  const { init } = useDaemonStore();
-
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    init().then((fn) => { cleanup = fn; });
-    return () => cleanup?.();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return null;
-}
+import { invoke } from "@tauri-apps/api/core";
+import { Onboarding } from "@/pages/Onboarding";
+import { Chat } from "@/pages/Chat";
+import { ModelStatusListener } from "@/components/ModelStatus";
+import { useAppStore } from "@/store/app";
 
 export default function App() {
+  const { onboarded, setOnboarded, setModelStatus, modelStatus } = useAppStore();
+
+  useEffect(() => {
+    // check_onboarded = lead was submitted (gates the first report)
+    invoke<boolean>("check_onboarded").then((submitted) => {
+      useAppStore.getState().setLeadSubmitted(submitted);
+    });
+
+    // Model status — if model is ready or was previously downloaded, skip welcome
+    invoke<{ status: string; progress: number }>("get_model_status").then(
+      ({ status, progress }) => {
+        setModelStatus(status as any);
+        useAppStore.getState().setModelProgress(progress);
+        // If model is already set up, go straight to chat
+        if (status === "ready" || status === "loading") {
+          setOnboarded(true);
+        }
+      }
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppInit />
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <>
+      <ModelStatusListener />
+      {onboarded ? <Chat /> : <Onboarding />}
+    </>
   );
 }

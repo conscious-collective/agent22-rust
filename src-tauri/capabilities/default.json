@@ -6,16 +6,12 @@
   "permissions": [
     "core:default",
     "core:event:default",
-    "core:window:default",
-    "shell:allow-spawn",
-    "shell:allow-kill",
-    "shell:allow-stdin-write",
-    "shell:allow-execute",
     "store:allow-get",
     "store:allow-set",
     "store:allow-load",
     "store:allow-save",
     "store:allow-has",
-    "store:allow-delete"
+    "store:allow-delete",
+    "dialog:allow-open"
   ]
 }
