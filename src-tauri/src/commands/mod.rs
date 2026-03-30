@@ -1,5 +1,3 @@
-pub mod agents;
-pub mod daemon;
-pub mod providers;
-pub mod skills;
-pub mod workflows;
+pub mod analysis;
+pub mod chat;
+pub mod onboarding;

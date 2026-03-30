@@ -3,8 +3,11 @@ use serde::Serialize;
 #[derive(Debug, thiserror::Error, Serialize)]
 #[serde(tag = "kind", content = "message")]
 pub enum AppError {
-    #[error("OpenFang API error {status}: {message}")]
-    Api { status: u16, message: String },
+    #[error("Model error: {0}")]
+    Model(String),
+
+    #[error("Analysis error: {0}")]
+    Analysis(String),
 
     #[error("Network error: {0}")]
     Network(String),
@@ -15,8 +18,8 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(String),
 
-    #[error("Process error: {0}")]
-    Process(String),
+    #[error("CSV parse error: {0}")]
+    Csv(String),
 }
 
 impl From<reqwest::Error> for AppError {
@@ -34,5 +37,11 @@ impl From<serde_json::Error> for AppError {
 impl From<std::io::Error> for AppError {
     fn from(e: std::io::Error) -> Self {
         AppError::Io(e.to_string())
+    }
+}
+
+impl From<csv::Error> for AppError {
+    fn from(e: csv::Error) -> Self {
+        AppError::Csv(e.to_string())
     }
 }
