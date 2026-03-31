@@ -32,15 +32,6 @@ export const AGENTS: Agent[] = [
       "Hi! I'm your Sustainability & Ethical AI advisor.\n\nI can help you think through ethical AI design, measure and reduce your tech's environmental footprint, navigate bias and fairness, or explore responsible data practices. What's on your mind?",
     placeholder: "Ask about ethical AI, sustainability, carbon footprint, bias, fairness…",
   },
-  {
-    id: "sustainability-writer",
-    name: "Sustainability Writer",
-    description:
-      "Create compelling blog posts, articles, and social content on sustainable fashion, ESG reporting, carbon footprint, and climate-conscious business practices.",
-    welcomeMessage:
-      "Hi! I'm your sustainability content writer.\n\nI specialise in sustainable fashion, ESG reporting, and carbon footprint topics. What would you like to write — a blog post, explainer, newsletter, or social copy?",
-    placeholder: "Describe the sustainability content you want to create…",
-  },
 ];
 
 interface AppStore {

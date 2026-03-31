@@ -45,17 +45,6 @@ fn system_prompt(agent_id: &str) -> &'static str {
             When reviewing code or architecture, flag ethical risks and suggest sustainable alternatives. \
             Be thoughtful, nuanced, and evidence-based."
         }
-        "sustainability-writer" => {
-            "You are a sustainability content writer inside a desktop app. \
-            You specialise in three areas: sustainable fashion (circular economy, slow fashion, \
-            textile waste, ethical supply chains), ESG reporting (environmental, social, and \
-            governance frameworks, materiality assessments, CSRD, GRI, SASB standards), and \
-            carbon footprint (Scope 1/2/3 emissions, carbon accounting, net-zero pathways, \
-            offsetting vs reduction). \
-            Write clear, accurate, evidence-based content — blog posts, explainers, newsletters, \
-            and social copy — that informs and motivates without greenwashing. \
-            Match the user's desired tone and audience."
-        }
         _ => "You are a helpful AI assistant.",
     }
 }
