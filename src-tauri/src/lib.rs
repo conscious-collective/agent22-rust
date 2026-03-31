@@ -1,7 +1,5 @@
 mod commands;
 mod error;
-mod analysis;
-mod lead;
 mod model;
 mod state;
 
@@ -11,21 +9,19 @@ use tauri::{Emitter, Manager};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            commands::onboarding::check_onboarded,
-            commands::onboarding::save_lead,
             commands::onboarding::get_model_status,
             commands::onboarding::start_model_setup,
-            commands::analysis::analyze_csv,
             commands::chat::send_message,
         ])
         .setup(|app| {
-            // If model is already downloaded, start loading it in the background.
+            // If the model is already on disk, load it in the background so
+            // returning users skip the download step entirely.
             let handle = app.handle().clone();
             let model_state = app.state::<AppState>().model.clone();
+
             tauri::async_runtime::spawn(async move {
                 if model::is_downloaded(&handle) {
                     {
@@ -40,19 +36,23 @@ pub fn run() {
                             Ok(()) => {
                                 let mut ms = state_arc.lock().unwrap();
                                 ms.status = state::ModelStatus::Ready;
+                                drop(ms);
                                 let _ = h2.emit("model://ready", ());
                             }
                             Err(e) => {
                                 let msg = e.to_string();
                                 let mut ms = state_arc.lock().unwrap();
                                 ms.status = state::ModelStatus::Error;
-                                ms.error  = Some(msg.clone());
+                                ms.error = Some(msg.clone());
                                 let _ = h2.emit("model://error", &msg);
                             }
                         }
-                    }).await.ok();
+                    })
+                    .await
+                    .ok();
                 }
             });
+
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -1,33 +1,28 @@
 # agent22
 
-Local AI workflow automation desktop app — build, run, and chat with AI agents entirely offline. Built with [Tauri](https://tauri.app) and powered by [OpenFang](https://openfang.sh).
+A desktop app for chatting with specialised AI agents — entirely offline. Built with [Tauri](https://tauri.app) and powered by the [OpenFang](https://openfang.sh) agent runtime.
 
-![tauri](https://img.shields.io/badge/tauri-2.0-blue) ![rust](https://img.shields.io/badge/rust-1.87+-orange) ![license](https://img.shields.io/badge/license-MIT-green)
+![tauri](https://img.shields.io/badge/tauri-2.0-blue) ![rust](https://img.shields.io/badge/rust-1.77+-orange) ![license](https://img.shields.io/badge/license-MIT-green)
 
-## Features
+## Agents
 
-- **Agents** — create named AI teammates with custom roles, system prompts, and models
-- **Workflows** — visually chain agents into multi-step automations on a drag-and-drop canvas
-- **Skills** — browse and use 60+ bundled capabilities
-- **Live chat** — stream responses from any agent in real time via WebSocket
-- **Providers** — connect Ollama, Anthropic, OpenAI, Groq, and 22 more
+| Agent | Role |
+|-------|------|
+| **Rust Teacher** | Guided Rust programming lessons — ownership, lifetimes, traits, async, compiler errors |
+| **Content Creator** | Blog posts, social media, newsletters, scripts — any written content |
 
-No cloud. No subscriptions. Nothing leaves your machine. The AI engine runs bundled inside the app.
+More agents coming. Adding one is [a few lines of code](#adding-an-agent).
+
+## How it works
+
+- Pick an agent from the list
+- On first use the model downloads automatically (~1 GB, one time)
+- Chat with real-time streaming responses
+- Everything runs locally — no cloud, no API keys, no content filtering
 
 ## Setup
 
 **Requirements:** Rust stable, Node 22+
-
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Optional but recommended — local LLM, no API key needed
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen2.5:7b
-```
-
-## Run
 
 ```bash
 git clone https://github.com/conscious-collective/agent22-rust
@@ -36,75 +31,61 @@ npm install
 npm run dev
 ```
 
-First run downloads the correct engine binary for your platform automatically. The engine starts in the background when the app launches. Configure an LLM provider in Settings if you haven't set up Ollama.
+On first agent launch the app downloads **Qwen2.5-1.5B-Instruct Q4_K_M** (~1 GB) from HuggingFace and loads it directly. No external runtime required.
 
-## Build a distributable
+## Model
+
+| Model | Size | RAM | Source |
+|-------|------|-----|--------|
+| Qwen2.5-1.5B-Instruct Q4_K_M | ~1 GB | ~1.5 GB | `bartowski/Qwen2.5-1.5B-Instruct-GGUF` |
+
+To swap the model, edit the three constants at the top of `src-tauri/src/model.rs`:
+
+```rust
+const HF_REPO: &str = "bartowski/Qwen2.5-1.5B-Instruct-GGUF";
+const HF_FILE: &str = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf";
+const MODEL_FILENAME: &str = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf";
+```
+
+Any public HuggingFace GGUF repo works.
+
+## Build
 
 ```bash
 npm run build
-# .dmg / .exe / .AppImage → src-tauri/target/release/bundle/
+# installer → src-tauri/target/release/bundle/
 ```
 
-Produces a self-contained installer — the engine binary is bundled in, end users install one file.
+## Adding an agent
 
-## Local model recommendation
+1. Add an entry to `AGENTS` in `src/store/app.ts`:
 
-**`qwen2.5:7b`** — best balance of quality and resource use for an 8 GB machine.
-
-| Model | Download | RAM usage | Notes |
-|-------|----------|-----------|-------|
-| `qwen2.5:7b` | 4.7 GB | ~4 GB | Recommended — strong reasoning, Apache 2.0 |
-| `qwen2.5:3b` | 1.9 GB | ~2 GB | Lighter option for constrained systems |
-
-```bash
-ollama pull qwen2.5:7b
-ollama serve
+```ts
+{
+  id: "my-agent",
+  name: "My Agent",
+  description: "What this agent does.",
+  welcomeMessage: "Hi! I'm your ...",
+  placeholder: "Ask me anything about ...",
+}
 ```
 
-OpenFang auto-discovers all Ollama models. No config needed.
+2. Add the matching system prompt in `src-tauri/src/commands/chat.rs`:
 
-## Architecture
-
-```
-agent22-rust/
-├── scripts/
-│   └── download-sidecar.sh   # fetches engine binary for current platform
-├── src/                      # React + TypeScript frontend
-│   ├── pages/                # Dashboard, Agents, Workflows, Skills, Settings
-│   ├── components/           # UI, layout, agent chat, workflow builder nodes
-│   ├── hooks/                # TanStack Query + WebSocket hooks
-│   ├── store/                # Zustand — daemon status, UI, workflow canvas
-│   ├── lib/api.ts            # All Tauri invoke() calls — single boundary
-│   └── types/                # Shared TypeScript types
-└── src-tauri/                # Rust backend
-    ├── binaries/             # Downloaded engine binary (gitignored)
-    └── src/
-        ├── sidecar.rs        # Engine lifecycle — start, stop, health monitor
-        ├── commands/         # 24 Tauri commands (agents, workflows, skills, providers)
-        ├── state.rs          # Shared app state (reqwest client, daemon status)
-        └── error.rs          # Typed error enum
+```rust
+"my-agent" => "You are a ...",
 ```
 
-**Data flow:**
-- UI → `invoke()` → Tauri command → `reqwest` → engine REST API (`localhost:4200`)
-- Agent chat → WebSocket direct from webview → `ws://localhost:4200/api/agents/{id}/ws`
-
-## LLM providers
-
-| Provider | Setup |
-|----------|-------|
-| Ollama | `ollama serve` + `ollama pull <model>` — zero config, auto-discovered |
-| Anthropic | `ANTHROPIC_API_KEY` or Settings → Providers |
-| OpenAI | `OPENAI_API_KEY` or Settings → Providers |
-| Groq | `GROQ_API_KEY` or Settings → Providers |
-| + 22 more | Settings → Providers |
+That's it.
 
 ## Stack
 
 - [Tauri 2.0](https://tauri.app) — Rust desktop shell
-- [OpenFang](https://openfang.sh) — agent runtime, 76 REST/WS/SSE endpoints
+- [llama-cpp-2](https://crates.io/crates/llama-cpp-2) — GGUF inference (Rust bindings to llama.cpp)
 - [React 18](https://react.dev) + TypeScript
 - [TailwindCSS 3](https://tailwindcss.com)
-- [@xyflow/react](https://reactflow.dev) — workflow canvas
-- [TanStack Query](https://tanstack.com/query) — server state
 - [Zustand](https://zustand-demo.pmnd.rs) — client state
+
+## License
+
+MIT — see [LICENSE](LICENSE).

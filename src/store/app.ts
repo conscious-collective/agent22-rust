@@ -7,46 +7,6 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
-export interface ShapleyContribution {
-  feature: string;
-  value: number;
-}
-
-export interface ShapleyResult {
-  company: string;
-  score: number;
-  tier: "Tier 1" | "Tier 2" | "Nurture" | "Poor Fit";
-  contributions: [string, number][];
-  baseline: number;
-}
-
-export interface AnalysisSummary {
-  total: number;
-  tier1: number;
-  tier2: number;
-  nurture: number;
-  poor_fit: number;
-  top_tier1: string[];
-  top_drivers: string[];
-}
-
-export interface IcpRubric {
-  company_id_column: string;
-  rationale: string;
-  rules: Array<{
-    feature: string;
-    weight: number;
-    ideal_description: string;
-  }>;
-}
-
-export interface AnalysisResult {
-  rubric: IcpRubric;
-  records: ShapleyResult[];
-  summary: AnalysisSummary;
-  llm_narrative: string;
-}
-
 export type ModelStatus =
   | "not_downloaded"
   | "downloading"
@@ -54,16 +14,43 @@ export type ModelStatus =
   | "ready"
   | "error";
 
+export interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  welcomeMessage: string;
+  placeholder: string;
+}
+
+export const AGENTS: Agent[] = [
+  {
+    id: "rust-teacher",
+    name: "Rust Teacher",
+    description:
+      "Learn Rust from scratch with guided explanations, code examples, and help understanding ownership, lifetimes, traits, and async.",
+    welcomeMessage:
+      "Hi! I'm your Rust programming teacher.\n\nWhat would you like to learn? We can start from the basics or dive into specific topics like ownership, lifetimes, traits, async/await, or anything else.",
+    placeholder: "Ask about Rust concepts, request examples, or share code for review…",
+  },
+  {
+    id: "content-creator",
+    name: "Content Creator",
+    description:
+      "Create compelling blog posts, social media content, newsletters, and more with an AI that understands tone, audience, and format.",
+    welcomeMessage:
+      "Hi! I'm your content creation assistant.\n\nWhat would you like to create today? I can help with blog posts, social media, newsletters, scripts, and more.",
+    placeholder: "Describe the content you want to create…",
+  },
+];
+
 interface AppStore {
-  // Setup complete (welcome + model)
+  // Setup
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
 
-  // Lead gate — shown before first report
-  leadSubmitted: boolean;
-  setLeadSubmitted: (v: boolean) => void;
-  pendingAnalysis: AnalysisResult | null;
-  setPendingAnalysis: (r: AnalysisResult | null) => void;
+  // Agent selection
+  selectedAgent: Agent | null;
+  setSelectedAgent: (agent: Agent | null) => void;
 
   // Model
   modelStatus: ModelStatus;
@@ -80,26 +67,14 @@ interface AppStore {
   clearMessages: () => void;
   isGenerating: boolean;
   setGenerating: (v: boolean) => void;
-
-  // Analysis
-  analysisResult: AnalysisResult | null;
-  isAnalysing: boolean;
-  setAnalysisResult: (r: AnalysisResult | null) => void;
-  setAnalysing: (v: boolean) => void;
-
-  // Analysis context (compressed for chat system prompt)
-  analysisContext: string | null;
-  setAnalysisContext: (ctx: string | null) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
   onboarded: false,
   setOnboarded: (v) => set({ onboarded: v }),
 
-  leadSubmitted: false,
-  setLeadSubmitted: (v) => set({ leadSubmitted: v }),
-  pendingAnalysis: null,
-  setPendingAnalysis: (r) => set({ pendingAnalysis: r }),
+  selectedAgent: null,
+  setSelectedAgent: (agent) => set({ selectedAgent: agent, messages: [] }),
 
   modelStatus: "not_downloaded",
   modelProgress: 0,
@@ -126,12 +101,4 @@ export const useAppStore = create<AppStore>((set) => ({
   clearMessages: () => set({ messages: [] }),
   isGenerating: false,
   setGenerating: (v) => set({ isGenerating: v }),
-
-  analysisResult: null,
-  isAnalysing: false,
-  setAnalysisResult: (r) => set({ analysisResult: r }),
-  setAnalysing: (v) => set({ isAnalysing: v }),
-
-  analysisContext: null,
-  setAnalysisContext: (ctx) => set({ analysisContext: ctx }),
 }));
