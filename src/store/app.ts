@@ -33,13 +33,13 @@ export const AGENTS: Agent[] = [
     placeholder: "Ask about ethical AI, sustainability, carbon footprint, bias, fairness…",
   },
   {
-    id: "content-creator",
-    name: "Content Creator",
+    id: "sustainability-writer",
+    name: "Sustainability Writer",
     description:
-      "Create compelling blog posts, social media content, newsletters, and more with an AI that understands tone, audience, and format.",
+      "Create compelling blog posts, articles, and social content on sustainable fashion, ESG reporting, carbon footprint, and climate-conscious business practices.",
     welcomeMessage:
-      "Hi! I'm your content creation assistant.\n\nWhat would you like to create today? I can help with blog posts, social media, newsletters, scripts, and more.",
-    placeholder: "Describe the content you want to create…",
+      "Hi! I'm your sustainability content writer.\n\nI specialise in sustainable fashion, ESG reporting, and carbon footprint topics. What would you like to write — a blog post, explainer, newsletter, or social copy?",
+    placeholder: "Describe the sustainability content you want to create…",
   },
 ];
 
