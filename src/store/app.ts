@@ -24,13 +24,13 @@ export interface Agent {
 
 export const AGENTS: Agent[] = [
   {
-    id: "rust-teacher",
-    name: "Rust Teacher",
+    id: "sustainability-ethics",
+    name: "Sustainability & Ethical AI",
     description:
-      "Learn Rust from scratch with guided explanations, code examples, and help understanding ownership, lifetimes, traits, and async.",
+      "Explore sustainable technology practices, ethical AI principles, carbon-aware computing, responsible data use, and how to build systems that are fair, transparent, and planet-conscious.",
     welcomeMessage:
-      "Hi! I'm your Rust programming teacher.\n\nWhat would you like to learn? We can start from the basics or dive into specific topics like ownership, lifetimes, traits, async/await, or anything else.",
-    placeholder: "Ask about Rust concepts, request examples, or share code for review…",
+      "Hi! I'm your Sustainability & Ethical AI advisor.\n\nI can help you think through ethical AI design, measure and reduce your tech's environmental footprint, navigate bias and fairness, or explore responsible data practices. What's on your mind?",
+    placeholder: "Ask about ethical AI, sustainability, carbon footprint, bias, fairness…",
   },
   {
     id: "content-creator",
