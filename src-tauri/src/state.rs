@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ pub enum ModelStatus {
 
 pub struct ModelState {
     pub status: ModelStatus,
-    pub progress: f32,    // 0.0–100.0 during download
+    pub progress: f32,
     pub error: Option<String>,
 }
 
@@ -31,14 +32,12 @@ impl Default for ModelState {
 pub struct AppState {
     pub client: Arc<Client>,
     pub model: Arc<Mutex<ModelState>>,
-    // The loaded llama model lives in model.rs and is accessed via a global
-    // because llama_cpp_2 types are not Send+Sync in all configurations.
 }
 
 impl AppState {
     pub fn new() -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(std::time::Duration::from_secs(300))
             .build()
             .expect("failed to build reqwest client");
 

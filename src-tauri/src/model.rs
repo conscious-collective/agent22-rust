@@ -1,7 +1,13 @@
-/// Local GGUF model management — download, load, and inference.
+/// Local GGUF model — download from HuggingFace, load, and stream inference.
 ///
-/// Model: microsoft/bitnet-b1.58-2B-4T (Q4_K_M quantisation)
-/// Inference via llama_cpp_2 (Rust bindings to llama.cpp).
+/// ┌─ To change model ──────────────────────────────────────────────┐
+/// │  Update HF_REPO, HF_FILE, and MODEL_FILENAME below.           │
+/// │  Any public HuggingFace GGUF repo works.                      │
+/// └────────────────────────────────────────────────────────────────┘
+///
+/// Default: Qwen2.5-1.5B-Instruct Q4_K_M  (~1 GB, Apache-2.0)
+///   Repo : bartowski/Qwen2.5-1.5B-Instruct-GGUF
+///   File : Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -16,10 +22,21 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::error::AppError;
 use crate::state::{AppState, ModelStatus};
 
-const MODEL_FILENAME: &str = "ggml-model-i2_s.gguf";
-const MODEL_URL: &str =
-    "https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf";
+// ── Model source ─────────────────────────────────────────────────────────────
+const HF_REPO: &str = "bartowski/Qwen2.5-1.5B-Instruct-GGUF";
+const HF_FILE: &str = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf";
+const MODEL_FILENAME: &str = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf";
+// ─────────────────────────────────────────────────────────────────────────────
 
+fn hf_url() -> String {
+    format!(
+        "https://huggingface.co/{}/resolve/main/{}",
+        HF_REPO, HF_FILE
+    )
+}
+
+// Global singletons — llama_cpp_2 types are not always Send+Sync across
+// configurations, so they live in static storage accessed from spawn_blocking.
 static BACKEND: OnceLock<LlamaBackend> = OnceLock::new();
 static MODEL: OnceLock<Arc<Mutex<Option<LlamaModel>>>> = OnceLock::new();
 
@@ -38,14 +55,13 @@ pub fn is_downloaded(app: &AppHandle) -> bool {
     model_path(app).exists()
 }
 
-/// Download model from HuggingFace, emitting progress events.
-/// Event payload: `{ percent: f32, downloaded_mb: f32, total_mb: f32 }`
+/// Download the GGUF file from HuggingFace, emitting progress events.
+/// Payload: `{ percent: f32, downloaded_mb: f32, total_mb: f32 }`
 pub async fn download_model(app: AppHandle) -> Result<PathBuf, AppError> {
     let path = model_path(&app);
     if path.exists() {
         return Ok(path);
     }
-
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -57,7 +73,7 @@ pub async fn download_model(app: AppHandle) -> Result<PathBuf, AppError> {
         ms.progress = 0.0;
     }
 
-    let response = state.client.get(MODEL_URL).send().await?;
+    let response = state.client.get(hf_url()).send().await?;
     let total = response.content_length().unwrap_or(0);
 
     let mut downloaded: u64 = 0;
@@ -77,12 +93,10 @@ pub async fn download_model(app: AppHandle) -> Result<PathBuf, AppError> {
         } else {
             0.0
         };
-
         {
             let mut ms = state.model.lock().unwrap();
             ms.progress = percent;
         }
-
         let _ = app.emit(
             "model://progress",
             serde_json::json!({
@@ -97,11 +111,10 @@ pub async fn download_model(app: AppHandle) -> Result<PathBuf, AppError> {
     Ok(path)
 }
 
-/// Load the GGUF model into memory. Run inside `spawn_blocking`.
+/// Load the GGUF model into the global singleton. Must run inside `spawn_blocking`.
 pub fn load_model(path: PathBuf) -> Result<(), AppError> {
-    let backend = BACKEND.get_or_init(|| {
-        LlamaBackend::init().expect("failed to initialise llama backend")
-    });
+    let backend =
+        BACKEND.get_or_init(|| LlamaBackend::init().expect("llama backend init failed"));
 
     let params = LlamaModelParams::default();
     let model = LlamaModel::load_from_file(backend, &path, &params)
@@ -111,9 +124,9 @@ pub fn load_model(path: PathBuf) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Synchronous text generation. Call inside `spawn_blocking`.
-/// `messages` — `[{ role: "system"|"user"|"assistant", content: String }]`
-pub fn generate(messages: &[serde_json::Value]) -> Result<String, AppError> {
+/// Streaming inference — emits `model://token` per token, then `model://done`.
+/// Must run inside `spawn_blocking`.
+pub fn generate_stream(messages: Vec<serde_json::Value>, app: AppHandle) -> Result<(), AppError> {
     let guard = global_model().lock().unwrap();
     let model = guard
         .as_ref()
@@ -121,79 +134,7 @@ pub fn generate(messages: &[serde_json::Value]) -> Result<String, AppError> {
 
     let backend = BACKEND
         .get()
-        .ok_or_else(|| AppError::Model("backend not init".into()))?;
-
-    let prompt = build_chatml_prompt(messages);
-
-    let ctx_params = LlamaContextParams::default()
-        .with_n_ctx(std::num::NonZeroU32::new(4096));
-    let mut ctx = model
-        .new_context(backend, ctx_params)
-        .map_err(|e| AppError::Model(format!("ctx failed: {e}")))?;
-
-    let tokens = model
-        .str_to_token(&prompt, AddBos::Always)
-        .map_err(|e| AppError::Model(format!("tokenise: {e}")))?;
-
-    let n_ctx = ctx.n_ctx() as usize;
-    if tokens.len() >= n_ctx {
-        return Err(AppError::Model("prompt exceeds context window".into()));
-    }
-
-    let mut batch = LlamaBatch::new(tokens.len(), 1);
-    let last = tokens.len() - 1;
-    for (i, &tok) in tokens.iter().enumerate() {
-        batch
-            .add(tok, i as i32, &[0], i == last)
-            .map_err(|e| AppError::Model(format!("batch add: {e}")))?;
-    }
-    ctx.decode(&mut batch)
-        .map_err(|e| AppError::Model(format!("decode: {e}")))?;
-
-    let mut sampler = LlamaSampler::chain_simple([LlamaSampler::greedy()]);
-    let mut decoder = encoding_rs::UTF_8.new_decoder();
-    let mut output = String::new();
-    let n_max = (n_ctx - tokens.len()).min(1024);
-    let mut n_cur = tokens.len() as i32;
-
-    for _ in 0..n_max {
-        let token = sampler.sample(&ctx, batch.n_tokens() - 1);
-        sampler.accept(token);
-
-        if model.is_eog_token(token) {
-            break;
-        }
-
-        let piece = model
-            .token_to_piece(token, &mut decoder, false, None)
-            .map_err(|e| AppError::Model(format!("detokenise: {e}")))?;
-        output.push_str(&piece);
-
-        batch.clear();
-        batch
-            .add(token, n_cur, &[0], true)
-            .map_err(|e| AppError::Model(format!("batch add: {e}")))?;
-        ctx.decode(&mut batch)
-            .map_err(|e| AppError::Model(format!("decode: {e}")))?;
-        n_cur += 1;
-    }
-
-    Ok(output.trim().to_string())
-}
-
-/// Streaming generation — emits `model://token` events, then `model://done`.
-pub fn generate_stream(
-    messages: Vec<serde_json::Value>,
-    app: AppHandle,
-) -> Result<(), AppError> {
-    let guard = global_model().lock().unwrap();
-    let model = guard
-        .as_ref()
-        .ok_or_else(|| AppError::Model("model not loaded".into()))?;
-
-    let backend = BACKEND
-        .get()
-        .ok_or_else(|| AppError::Model("backend not init".into()))?;
+        .ok_or_else(|| AppError::Model("backend not initialised".into()))?;
 
     let prompt = build_chatml_prompt(&messages);
 
@@ -201,21 +142,21 @@ pub fn generate_stream(
         .with_n_ctx(std::num::NonZeroU32::new(4096));
     let mut ctx = model
         .new_context(backend, ctx_params)
-        .map_err(|e| AppError::Model(format!("ctx failed: {e}")))?;
+        .map_err(|e| AppError::Model(format!("context: {e}")))?;
 
     let tokens = model
         .str_to_token(&prompt, AddBos::Always)
         .map_err(|e| AppError::Model(format!("tokenise: {e}")))?;
 
     let n_ctx = ctx.n_ctx() as usize;
-    let n_max = (n_ctx - tokens.len()).min(1024);
+    let n_max = (n_ctx.saturating_sub(tokens.len())).min(1024);
 
     let mut batch = LlamaBatch::new(tokens.len(), 1);
     let last = tokens.len() - 1;
     for (i, &tok) in tokens.iter().enumerate() {
         batch
             .add(tok, i as i32, &[0], i == last)
-            .map_err(|e| AppError::Model(format!("batch add: {e}")))?;
+            .map_err(|e| AppError::Model(format!("batch: {e}")))?;
     }
     ctx.decode(&mut batch)
         .map_err(|e| AppError::Model(format!("decode: {e}")))?;
@@ -241,7 +182,7 @@ pub fn generate_stream(
         batch.clear();
         batch
             .add(token, n_cur, &[0], true)
-            .map_err(|e| AppError::Model(format!("batch add: {e}")))?;
+            .map_err(|e| AppError::Model(format!("batch: {e}")))?;
         ctx.decode(&mut batch)
             .map_err(|e| AppError::Model(format!("decode: {e}")))?;
         n_cur += 1;
@@ -251,6 +192,7 @@ pub fn generate_stream(
     Ok(())
 }
 
+/// ChatML prompt format, compatible with Qwen2 and most instruction-tuned models.
 fn build_chatml_prompt(messages: &[serde_json::Value]) -> String {
     let mut prompt = String::new();
     for msg in messages {
