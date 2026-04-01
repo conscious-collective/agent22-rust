@@ -24,13 +24,13 @@ export interface Agent {
 
 export const AGENTS: Agent[] = [
   {
-    id: "sustainability-ethics",
-    name: "Sustainability & Ethical AI",
+    id: "sustainability-consultant",
+    name: "Sustainability Buddy",
     description:
-      "Explore sustainable technology practices, ethical AI principles, carbon-aware computing, responsible data use, and how to build systems that are fair, transparent, and planet-conscious.",
+      "Your expert guide for sustainability strategy, ESG frameworks, carbon footprint analysis, green technology adoption, and building environmentally responsible organizations.",
     welcomeMessage:
-      "Hi! I'm your Sustainability & Ethical AI advisor.\n\nI can help you think through ethical AI design, measure and reduce your tech's environmental footprint, navigate bias and fairness, or explore responsible data practices. What's on your mind?",
-    placeholder: "Ask about ethical AI, sustainability, carbon footprint, bias, fairness…",
+      "Hi, I'm Sustainability Buddy!\n\nI can help with ESG strategy, carbon accounting, sustainability reporting, green tech adoption, or advising on responsible business practices. What are you working on?",
+    placeholder: "Ask about ESG, carbon footprint, sustainability strategy, green tech…",
   },
 ];
 
