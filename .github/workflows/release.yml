@@ -24,6 +24,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos-latest'
+        run: brew install cmake
+
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
