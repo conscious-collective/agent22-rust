@@ -1,6 +1,6 @@
 # agent22
 
-A desktop app for chatting with specialised AI agents — entirely offline. Built with [Tauri](https://tauri.app) and powered by the [OpenFang](https://openfang.sh) agent runtime.
+A desktop app for chatting with specialised AI agents — entirely offline. Built with [Tauri](https://tauri.app) and [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 ![tauri](https://img.shields.io/badge/tauri-2.0-blue) ![rust](https://img.shields.io/badge/rust-1.77+-orange) ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -8,8 +8,7 @@ A desktop app for chatting with specialised AI agents — entirely offline. Buil
 
 | Agent | Role |
 |-------|------|
-| **Rust Teacher** | Guided Rust programming lessons — ownership, lifetimes, traits, async, compiler errors |
-| **Content Creator** | Blog posts, social media, newsletters, scripts — any written content |
+| **Sustainability Buddy** | ESG strategy, carbon accounting, sustainability reporting, green tech, and responsible business practices |
 
 More agents coming. Adding one is [a few lines of code](#adding-an-agent).
 
