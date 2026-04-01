@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AGENTS, useAppStore } from "@/store/app";
+import { ProgressBar } from "@/components/ModelStatus";
 import { ArrowRight } from "lucide-react";
 
 export function AgentList() {
-  const { setSelectedAgent, setModelStatus } = useAppStore();
+  const { setSelectedAgent, setModelStatus, selectedAgent, modelStatus, modelProgress } = useAppStore();
 
   function handleSelectAgent(agent: (typeof AGENTS)[number]) {
     // Start model setup (download if needed, then load). No-op if already ready.
@@ -28,6 +29,18 @@ export function AgentList() {
         <p className="text-[13px] text-[#444] mb-8">
           Select an AI agent to start a conversation.
         </p>
+
+        {selectedAgent && modelStatus !== "ready" && (
+          <div className="mb-8">
+            <p className="text-[12px] text-[#444] mb-3">
+              Loading <span className="text-[#f0f0f0]">{selectedAgent.name}</span>…
+            </p>
+            <ProgressBar
+              progress={modelStatus === "loading" ? 95 : modelProgress}
+              label={modelStatus === "loading" ? "Starting engine" : "Downloading model"}
+            />
+          </div>
+        )}
 
         <div className="space-y-3">
           {AGENTS.map((agent) => (

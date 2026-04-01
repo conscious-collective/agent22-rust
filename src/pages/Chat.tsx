@@ -41,9 +41,11 @@ export function Chat() {
     return () => unlisten.forEach((fn) => fn());
   }, [updateLastMessage, setGenerating]);
 
-  // Show agent welcome message once
+  // Show agent welcome message once (ref guards against React Strict Mode double-fire)
+  const welcomeAdded = useRef(false);
   useEffect(() => {
-    if (messages.length === 0 && selectedAgent) {
+    if (!welcomeAdded.current && selectedAgent) {
+      welcomeAdded.current = true;
       addMessage({
         id: "welcome",
         role: "assistant",

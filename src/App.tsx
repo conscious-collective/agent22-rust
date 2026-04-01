@@ -7,7 +7,7 @@ import { ModelStatusListener } from "@/components/ModelStatus";
 import { useAppStore } from "@/store/app";
 
 export default function App() {
-  const { onboarded, setOnboarded, setModelStatus, selectedAgent } = useAppStore();
+  const { onboarded, setOnboarded, setModelStatus, selectedAgent, modelStatus } = useAppStore();
 
   useEffect(() => {
     invoke<{ status: string; progress: number }>("get_model_status").then(
@@ -27,7 +27,7 @@ export default function App() {
       <ModelStatusListener />
       {!onboarded ? (
         <Onboarding />
-      ) : selectedAgent ? (
+      ) : selectedAgent && modelStatus === "ready" ? (
         <Chat />
       ) : (
         <AgentList />
