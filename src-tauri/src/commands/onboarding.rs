@@ -54,6 +54,7 @@ pub async fn start_model_setup(
         let mut ms = state.model.lock().unwrap();
         ms.status = ModelStatus::Loading;
     }
+    let _ = app.emit("model://loading", ());
 
     let path = model::model_path(&app);
     let state_arc = state.model.clone();

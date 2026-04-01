@@ -30,46 +30,47 @@ export function AgentList() {
           Select an AI agent to start a conversation.
         </p>
 
-        {selectedAgent && modelStatus !== "ready" && (
-          <div className="mb-8">
-            <p className="text-[12px] text-[#444] mb-3">
-              Loading <span className="text-[#f0f0f0]">{selectedAgent.name}</span>…
-            </p>
-            <ProgressBar
-              progress={modelStatus === "loading" ? 95 : modelProgress}
-              label={modelStatus === "loading" ? "Starting engine" : "Downloading model"}
-            />
-          </div>
-        )}
-
         <div className="space-y-3">
-          {AGENTS.map((agent) => (
-            <button
-              key={agent.id}
-              onClick={() => handleSelectAgent(agent)}
-              className="w-full text-left group flex items-center gap-4 p-4 rounded-sm transition-colors"
-              style={{ background: "#0d0d10", border: "1px solid #1a1a22" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "#1a1a22";
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-display font-medium text-[#f0f0f0] mb-1">
-                  {agent.name}
-                </p>
-                <p className="text-[12px] text-[#444] leading-relaxed">
-                  {agent.description}
-                </p>
-              </div>
-              <ArrowRight
-                size={14}
-                className="shrink-0 text-[#333] group-hover:text-[#00e5ff] transition-colors"
-              />
-            </button>
-          ))}
+          {AGENTS.map((agent) => {
+            const isLoading = selectedAgent?.id === agent.id && modelStatus !== "ready";
+            return (
+              <button
+                key={agent.id}
+                onClick={() => handleSelectAgent(agent)}
+                className="w-full text-left group flex flex-col p-4 rounded-sm transition-colors"
+                style={{ background: "#0d0d10", border: "1px solid #1a1a22" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "#1a1a22";
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-display font-medium text-[#f0f0f0] mb-1">
+                      {agent.name}
+                    </p>
+                    <p className="text-[12px] text-[#444] leading-relaxed">
+                      {agent.description}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="shrink-0 text-[#333] group-hover:text-[#00e5ff] transition-colors"
+                  />
+                </div>
+                {isLoading && (
+                  <div className="w-full mt-3 pt-3 border-t border-[#1a1a22]">
+                    <ProgressBar
+                      progress={modelStatus === "loading" ? 95 : modelProgress}
+                      label={modelStatus === "loading" ? "Starting engine" : "Downloading model"}
+                    />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

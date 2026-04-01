@@ -16,6 +16,10 @@ export function ModelStatusListener() {
       }
     ).then((fn) => unlisten.push(fn));
 
+    listen("model://loading", () => {
+      setModelStatus("loading");
+    }).then((fn) => unlisten.push(fn));
+
     listen("model://ready", () => {
       setModelStatus("ready");
       setModelProgress(100);
