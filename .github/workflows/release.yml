@@ -28,6 +28,7 @@ jobs:
         if: matrix.platform == 'macos-14'
         run: |
           brew install cmake
+          echo "/opt/homebrew/bin" >> $GITHUB_PATH
           echo "LLAMA_METAL=OFF" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> $GITHUB_ENV
 
