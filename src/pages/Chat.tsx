@@ -27,18 +27,28 @@ export function Chat() {
   }, [messages]);
 
   useEffect(() => {
-    const unlisten: Array<() => void> = [];
+    let cancelled = false;
+    let unlisten1: (() => void) | null = null;
+    let unlisten2: (() => void) | null = null;
 
     listen<string>("model://token", ({ payload }) => {
       updateLastMessage(payload);
-    }).then((fn) => unlisten.push(fn));
+    }).then((fn) => {
+      if (cancelled) fn(); else unlisten1 = fn;
+    });
 
     listen("model://done", () => {
       updateLastMessage("", true);
       setGenerating(false);
-    }).then((fn) => unlisten.push(fn));
+    }).then((fn) => {
+      if (cancelled) fn(); else unlisten2 = fn;
+    });
 
-    return () => unlisten.forEach((fn) => fn());
+    return () => {
+      cancelled = true;
+      unlisten1?.();
+      unlisten2?.();
+    };
   }, [updateLastMessage, setGenerating]);
 
   // Show agent welcome message once (ref guards against React Strict Mode double-fire)
