@@ -44,7 +44,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: npm run build
           tagName: ${{ github.ref_name }}
           releaseName: 'Agent22 ${{ github.ref_name }}'
           releaseBody: |
