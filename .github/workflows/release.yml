@@ -28,6 +28,10 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: brew install cmake
 
+      - name: Disable Metal for macOS CI build
+        if: matrix.platform == 'macos-latest'
+        run: echo "LLAMA_METAL=OFF" >> $GITHUB_ENV
+
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
